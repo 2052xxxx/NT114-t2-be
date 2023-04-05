@@ -1,15 +1,35 @@
-﻿namespace NT114_t2_be.Models
-{
-    public class UserTable
-    {
-        public int userId { get; set; }
-        public string userName { get; set; }
-        public string realName { get; set; }
-        public string email { get; set; }
-        public string password { get; set; }
-        public string avatar { get; set; }
-        public string bio { get; set; }
-        public string dateTime { get; set; }
+﻿using System;
+using System.Collections.Generic;
 
-    }
+namespace NT114_t2_be.Models;
+
+public partial class UserTable
+{
+    public int Userid { get; set; }
+
+    public string Username { get; set; } = null!;
+
+    public string Realname { get; set; } = null!;
+
+    public string Email { get; set; } = null!;
+
+    public string Password { get; set; } = null!;
+
+    public string? Avatar { get; set; }
+
+    public string? Bio { get; set; }
+
+    public DateTime RegistrationDate { get; set; }
+
+    public virtual ICollection<ArticleTable> ArticleTables { get; } = new List<ArticleTable>();
+
+    public virtual ICollection<CommentTable> CommentTables { get; } = new List<CommentTable>();
+
+    public virtual ICollection<UserArticleTable> UserArticleTables { get; } = new List<UserArticleTable>();
+
+    public virtual ICollection<UserTable> Followers { get; } = new List<UserTable>();
+
+    public virtual ICollection<TagTable> Tags { get; } = new List<TagTable>();
+
+    public virtual ICollection<UserTable> Users { get; } = new List<UserTable>();
 }

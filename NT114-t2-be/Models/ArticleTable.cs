@@ -1,16 +1,31 @@
-﻿namespace NT114_t2_be.Models
+﻿using System;
+using System.Collections.Generic;
+
+namespace NT114_t2_be.Models;
+
+public partial class ArticleTable
 {
-    public class ArticleTable
-    {
-        public int articleId { get; set; }
-        public string title { get; set; }
-        public string body { get; set; }
-        public string authorId { get; set; }
-        public int likes { get; set; }
-        public int views { get; set; }
-        public string comments { get; set; }
-        public string lastUpdate { get; set; }
+    public int ArticleId { get; set; }
 
+    public string ArticleTitle { get; set; } = null!;
 
-    }
+    public string Body { get; set; } = null!;
+
+    public int AuthorId { get; set; }
+
+    public int Views { get; set; }
+
+    public int Likes { get; set; }
+
+    public int Comments { get; set; }
+
+    public DateTime LastUpdated { get; set; }
+
+    public virtual UserTable Author { get; set; } = null!;
+
+    public virtual ICollection<CommentTable> CommentTables { get; } = new List<CommentTable>();
+
+    public virtual ICollection<UserArticleTable> UserArticleTables { get; } = new List<UserArticleTable>();
+
+    public virtual ICollection<TagTable> Tags { get; } = new List<TagTable>();
 }
