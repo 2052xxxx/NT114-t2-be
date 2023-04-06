@@ -51,81 +51,84 @@ namespace NT114_t2_be.Controllers
             return CreatedAtAction(nameof(PostNewUser), new {id = user.Userid}, user);
         }
 
-        //[HttpPut("{id}")]
-        //public async Task<IActionResult> PutEditUser(int id, UserTable user)
-        //{
-        //    if (id != user.Userid)
-        //    {
-        //        return BadRequest("Invalid User Id");
-        //    }
+        //create an api for user to edit their profile
 
-        //    _context.Entry(user).State = EntityState.Modified;
+        [HttpPut("editUser")]
+        public async Task<IActionResult> PutEditUser(int id, UserTable user )
+        {
+            if (id != user.Userid)
+            {
+                return BadRequest("Invalid User Id");
+            }
 
-        //    try
-        //    {
-        //        await _context.SaveChangesAsync();
-        //    }
-        //    catch (DbUpdateConcurrencyException)
-        //    {
-        //        if (!UserExists(id))
-        //        {
-        //            return NotFound();
-        //        }
-        //        else
-        //        {
-        //            throw;
-        //        }
-        //    }
+            _context.Entry(user).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!UserExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
             
-        //    return Ok();
-        //}
+            return Ok();
+        }
 
+        private bool UserExists(long id)
+        {
+            return (_context.UserTables?.Any(x => x.Userid == id)).GetValueOrDefault();
+        }
 
-        //  [HttpGet]
-        ////  [Route("RawData")]
-        //  public IActionResult Get()
-        //  {
-        //      return Ok(_tables);
-        //  }
+        [HttpDelete("delUser")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            if (_context.UserTables ==null)
+            {
+                return NotFound();
+            }
 
-        //  [HttpGet("{id:int}")]
-        //  public IActionResult Get(int id)
-        //  {
-        //      var user = _tables.FirstOrDefault(x=>x.Userid == id);
-        //      if (user == null)
-        //          return BadRequest("Value null");
-        //      return Ok(user);
-        //  }
+            var user = await _context.UserTables.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+            _context.Remove(user);
+            await _context.SaveChangesAsync();
 
-        //  [HttpPost]        
-        //  public IActionResult Post(UserTable user)
-        //  {
-        //      _tables.Add(user);
+            return NoContent();
+        }
 
-        //      Console.WriteLine(_tables.Count);
+        //create an api for users to sign in
+        [HttpPost("signIn")]
+        public async Task<ActionResult<UserTable>> SignIn(string email, string password)
+        {
+            var userSignIn = await _context.UserTables.FirstOrDefaultAsync(x => x.Email == email && x.Password == password);
+            if (userSignIn == null)
+            {
+                return NotFound();
+            }
+            return userSignIn;
+        }
 
-        //      return CreatedAtAction("Get", nameof(Post), user);
-        //  }
-
-        //  [HttpPatch]
-        //  public IActionResult Patch(int id, string name)
-        //  {
-        //      var user = _tables.First(x => x.Userid == id);
-        //      if (user == null)
-        //          return BadRequest("Invalid Id");
-        //      user.Realname = name;
-
-        //      return Ok(user);
-        //  }
-
-        //  [HttpDelete] public IActionResult Delete(int id)
-        //  {
-        //      var user = _tables.FirstOrDefault(x => x.Userid == id);
-        //      if (user == null)
-        //          return BadRequest("Invalid Id");
-        //      _tables.Remove(user);
-        //      return Ok(_tables);
-        //  }
+        //create an api for users to sign out
+        [HttpPost("signOut")]
+        public async Task<ActionResult<UserTable>> SignOut(string email, string password)
+        {
+            var userSignOut = await _context.UserTables.FirstOrDefaultAsync(x => x.Email == email && x.Password == password);
+            if (userSignOut == null)
+            {
+                return NotFound();
+            }
+            return userSignOut;
+        }
 
     }
 }
