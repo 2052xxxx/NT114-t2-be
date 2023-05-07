@@ -86,24 +86,44 @@ namespace NT114_t2_be.Controllers
         {
             return (_context.UserTables?.Any(x => x.Userid == id)).GetValueOrDefault();
         }
-
-        [HttpDelete("delUser")]
-        public async Task<IActionResult> DeleteUser(int id)
+                      
+        //create an api for user to delete their profile including all the articles they have posted
+        [HttpDelete("deleteUser")]
+        public async Task<ActionResult<UserTable>> DeleteUser(int id)
         {
-            if (_context.UserTables ==null)
-            {
-                return NotFound();
-            }
-
             var user = await _context.UserTables.FindAsync(id);
             if (user == null)
             {
                 return NotFound();
             }
-            _context.Remove(user);
-            await _context.SaveChangesAsync();
+            var article = await _context.ArticleTables.FirstOrDefaultAsync(x => x.AuthorId == id);
+            if (article != null)
+            {
+                _context.ArticleTables.Remove(article);
+                await _context.SaveChangesAsync();
+            }
+            _context.UserTables.Remove(user);
 
-            return NoContent();
+            var comment = await _context.CommentTables.FirstOrDefaultAsync(x => x.UserId == id);
+            if (comment != null)
+            {
+                _context.CommentTables.Remove(comment);
+                await _context.SaveChangesAsync();
+            }
+            await _context.SaveChangesAsync();               
+
+            return user;
+        }
+
+        //how to link comment table to user table
+        [HttpGet("showUsrArticle")]
+        public async Task<ActionResult<IEnumerable<ArticleTable>>> GetArticle()
+        {
+            if (_context.ArticleTables == null)
+            {
+                return NotFound();
+            }
+            return await _context.ArticleTables.ToListAsync();
         }
 
         //create an api for users to sign in
@@ -129,6 +149,5 @@ namespace NT114_t2_be.Controllers
             }
             return userSignOut;
         }
-
     }
 }

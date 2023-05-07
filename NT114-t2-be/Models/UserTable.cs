@@ -25,11 +25,11 @@ public partial class UserTable
 
     public virtual ICollection<CommentTable> CommentTables { get; } = new List<CommentTable>();
 
+    public virtual ICollection<FollowingTable> FollowingTableFollowers { get; } = new List<FollowingTable>();
+
+    public virtual ICollection<FollowingTable> FollowingTableFollowings { get; } = new List<FollowingTable>();
+
     public virtual ICollection<UserArticleTable> UserArticleTables { get; } = new List<UserArticleTable>();
 
-    public virtual ICollection<UserTable> Followers { get; } = new List<UserTable>();
-
     public virtual ICollection<TagTable> Tags { get; } = new List<TagTable>();
-
-    public virtual ICollection<UserTable> Users { get; } = new List<UserTable>();
 }

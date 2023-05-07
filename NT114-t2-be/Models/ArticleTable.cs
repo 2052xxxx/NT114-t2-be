@@ -21,11 +21,11 @@ public partial class ArticleTable
 
     public DateTime LastUpdated { get; set; }
 
+    public virtual ICollection<ArticleTagTable> ArticleTagTables { get; } = new List<ArticleTagTable>();
+
     public virtual UserTable Author { get; set; } = null!;
 
     public virtual ICollection<CommentTable> CommentTables { get; } = new List<CommentTable>();
 
     public virtual ICollection<UserArticleTable> UserArticleTables { get; } = new List<UserArticleTable>();
-
-    public virtual ICollection<TagTable> Tags { get; } = new List<TagTable>();
 }

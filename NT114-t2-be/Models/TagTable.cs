@@ -9,7 +9,7 @@ public partial class TagTable
 
     public string TagName { get; set; } = null!;
 
-    public virtual ICollection<ArticleTable> Articles { get; } = new List<ArticleTable>();
+    public virtual ICollection<ArticleTagTable> ArticleTagTables { get; } = new List<ArticleTagTable>();
 
     public virtual ICollection<UserTable> Users { get; } = new List<UserTable>();
 }

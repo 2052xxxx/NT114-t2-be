@@ -17,7 +17,11 @@ public partial class Nt114T2DbContext : DbContext
 
     public virtual DbSet<ArticleTable> ArticleTables { get; set; }
 
+    public virtual DbSet<ArticleTagTable> ArticleTagTables { get; set; }
+
     public virtual DbSet<CommentTable> CommentTables { get; set; }
+
+    public virtual DbSet<FollowingTable> FollowingTables { get; set; }
 
     public virtual DbSet<TagTable> TagTables { get; set; }
 
@@ -58,25 +62,27 @@ public partial class Nt114T2DbContext : DbContext
                 .HasForeignKey(d => d.AuthorId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__ArticleTa__autho__4AB81AF0");
+        });
 
-            entity.HasMany(d => d.Tags).WithMany(p => p.Articles)
-                .UsingEntity<Dictionary<string, object>>(
-                    "ArticleTagTable",
-                    r => r.HasOne<TagTable>().WithMany()
-                        .HasForeignKey("TagId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__Article_t__tag_i__693CA210"),
-                    l => l.HasOne<ArticleTable>().WithMany()
-                        .HasForeignKey("ArticleId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__Article_t__artic__68487DD7"),
-                    j =>
-                    {
-                        j.HasKey("ArticleId", "TagId").HasName("PK__Article___B81F9C4B2B2359C9");
-                        j.ToTable("Article_tagTable");
-                        j.IndexerProperty<int>("ArticleId").HasColumnName("article_id");
-                        j.IndexerProperty<int>("TagId").HasColumnName("tag_id");
-                    });
+        modelBuilder.Entity<ArticleTagTable>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Article___3213E83F291E0D5A");
+
+            entity.ToTable("Article_tagTable");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ArticleId).HasColumnName("article_id");
+            entity.Property(e => e.TagId).HasColumnName("tag_id");
+
+            entity.HasOne(d => d.Article).WithMany(p => p.ArticleTagTables)
+                .HasForeignKey(d => d.ArticleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Article_t__artic__43D61337");
+
+            entity.HasOne(d => d.Tag).WithMany(p => p.ArticleTagTables)
+                .HasForeignKey(d => d.TagId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Article_t__tag_i__44CA3770");
         });
 
         modelBuilder.Entity<CommentTable>(entity =>
@@ -105,6 +111,27 @@ public partial class Nt114T2DbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__CommentTa__user___628FA481");
+        });
+
+        modelBuilder.Entity<FollowingTable>(entity =>
+        {
+            entity.HasKey(e => e.Id).HasName("PK__Followin__3213E83F8E003596");
+
+            entity.ToTable("FollowingTable");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FollowerId).HasColumnName("follower_id");
+            entity.Property(e => e.FollowingId).HasColumnName("following_id");
+
+            entity.HasOne(d => d.Follower).WithMany(p => p.FollowingTableFollowers)
+                .HasForeignKey(d => d.FollowerId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Following__follo__160F4887");
+
+            entity.HasOne(d => d.Following).WithMany(p => p.FollowingTableFollowings)
+                .HasForeignKey(d => d.FollowingId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK__Following__follo__17036CC0");
         });
 
         modelBuilder.Entity<TagTable>(entity =>
@@ -185,25 +212,6 @@ public partial class Nt114T2DbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("username");
 
-            entity.HasMany(d => d.Followers).WithMany(p => p.Users)
-                .UsingEntity<Dictionary<string, object>>(
-                    "FollowingTable",
-                    r => r.HasOne<UserTable>().WithMany()
-                        .HasForeignKey("FollowerId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__Following__follo__6D0D32F4"),
-                    l => l.HasOne<UserTable>().WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__Following__user___6C190EBB"),
-                    j =>
-                    {
-                        j.HasKey("UserId", "FollowerId").HasName("PK__Followin__5DFAD42D844A36BC");
-                        j.ToTable("FollowingTable");
-                        j.IndexerProperty<int>("UserId").HasColumnName("user_id");
-                        j.IndexerProperty<int>("FollowerId").HasColumnName("follower_id");
-                    });
-
             entity.HasMany(d => d.Tags).WithMany(p => p.Users)
                 .UsingEntity<Dictionary<string, object>>(
                     "UserTagTable",
@@ -221,25 +229,6 @@ public partial class Nt114T2DbContext : DbContext
                         j.ToTable("User_tagTable");
                         j.IndexerProperty<int>("UserId").HasColumnName("user_id");
                         j.IndexerProperty<int>("TagId").HasColumnName("tag_id");
-                    });
-
-            entity.HasMany(d => d.Users).WithMany(p => p.Followers)
-                .UsingEntity<Dictionary<string, object>>(
-                    "FollowingTable",
-                    r => r.HasOne<UserTable>().WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__Following__user___6C190EBB"),
-                    l => l.HasOne<UserTable>().WithMany()
-                        .HasForeignKey("FollowerId")
-                        .OnDelete(DeleteBehavior.ClientSetNull)
-                        .HasConstraintName("FK__Following__follo__6D0D32F4"),
-                    j =>
-                    {
-                        j.HasKey("UserId", "FollowerId").HasName("PK__Followin__5DFAD42D844A36BC");
-                        j.ToTable("FollowingTable");
-                        j.IndexerProperty<int>("UserId").HasColumnName("user_id");
-                        j.IndexerProperty<int>("FollowerId").HasColumnName("follower_id");
                     });
         });
 
