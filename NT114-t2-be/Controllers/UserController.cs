@@ -26,6 +26,31 @@ namespace NT114_t2_be.Controllers
             return await _context.UserTables.ToListAsync();
         }
 
+        //create an api for user to get the user but truncate the avatar, bio and registration date
+        [HttpGet("showUser_Ad")]
+        public async Task<ActionResult<IEnumerable<UserTable>>> GetUser_Ad()
+        {
+            if(_context.UserTables == null)
+            {
+                return NotFound();
+            }
+            var users = await _context.UserTables.ToListAsync();
+            foreach(var user in users)
+            {
+                if (string.IsNullOrEmpty(user.Avatar) || user.Avatar.Length <= 20 && string.IsNullOrEmpty(user.Bio) || user.Bio.Length <= 20)
+                {
+                    user.Avatar = user.Avatar;
+                    user.Bio = user.Bio;
+                }
+                else
+                {
+                    user.Avatar = user.Avatar.Substring(0, 20) + "...";
+                    user.Bio = user.Bio.Substring(0, 20) + "...";
+                }
+            }
+            return users;
+        }
+
         [HttpGet("{id}")]
         public async Task<ActionResult<UserTable>> GetUserById(int id)
         {
@@ -88,7 +113,7 @@ namespace NT114_t2_be.Controllers
         }
                       
         //create an api for user to delete their profile including all the articles they have posted
-        [HttpDelete("deleteUser")]
+        [HttpDelete("deleteUser/{id}")]
         public async Task<ActionResult<UserTable>> DeleteUser(int id)
         {
             var user = await _context.UserTables.FindAsync(id);
@@ -118,7 +143,7 @@ namespace NT114_t2_be.Controllers
         //how to link comment table to user table
         [HttpGet("showUsrArticle")]
         public async Task<ActionResult<IEnumerable<ArticleTable>>> GetArticle()
-        {
+        {   
             if (_context.ArticleTables == null)
             {
                 return NotFound();
@@ -126,20 +151,49 @@ namespace NT114_t2_be.Controllers
             return await _context.ArticleTables.ToListAsync();
         }
 
-        //create an api for users to sign in
-        [HttpPost("signIn")]
-        public async Task<ActionResult<UserTable>> SignIn(string email, string password)
+        //create an api for users to upload their avatar
+        [HttpPost("uploadAvatar")]
+        public async Task<ActionResult<UserTable>> UploadAvatar(IFormFile file)
         {
-            var userSignIn = await _context.UserTables.FirstOrDefaultAsync(x => x.Email == email && x.Password == password);
-            if (userSignIn == null)
+            //get the file name
+            var fileName = Path.GetFileName(file.FileName);
+            //get the file extension
+            var fileExtension = Path.GetExtension(fileName);
+            //get the file size
+            var fileSize = file.Length;
+            //get the file path
+            //var filePath = Path.Combine(_hostingEnvironment.WebRootPath, "images", fileName);
+            ////get the file stream
+            //using (var fileStream = new FileStream(filePath, FileMode.Create))
+            //{
+            //    await file.CopyToAsync(fileStream);
+            //}
+            return Ok();
+        }
+
+        [HttpPost("signIn")]
+        public async Task<ActionResult<UserTable>> SignIn(Login login)
+        {
+            //create an api for users to sign in
+
+            var log = await _context.UserTables.FirstOrDefaultAsync(x => x.Email.Equals(login.Email) && x.Password.Equals(login.Password));
+            if (log == null)
             {
                 return NotFound();
             }
-            return userSignIn;
+            else
+            {
+                //set status value to 1
+                log.Status = 1;
+                _context.Entry(log).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
+            return Ok();
         }
 
+
         //create an api for users to sign out
-        [HttpPost("signOut")]
+        [HttpPost("signOut_Ad")]
         public async Task<ActionResult<UserTable>> SignOut(string email, string password)
         {
             var userSignOut = await _context.UserTables.FirstOrDefaultAsync(x => x.Email == email && x.Password == password);
@@ -147,7 +201,27 @@ namespace NT114_t2_be.Controllers
             {
                 return NotFound();
             }
+            else
+            {
+                userSignOut.Status = 0;
+                _context.Entry(userSignOut).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
             return userSignOut;
+        }
+
+        // delete all users
+        [HttpDelete("deleteAllUser")]
+        public async Task<ActionResult<UserTable>> DeleteAllUser()
+        {
+            var user = await _context.UserTables.ToListAsync();
+            if (user == null)
+            {
+                return NotFound();
+            }
+            _context.UserTables.RemoveRange(user);
+            await _context.SaveChangesAsync();
+            return Ok();
         }
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NT114_t2_be.Models;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace NT114_t2_be.Controllers
 {
@@ -23,6 +24,33 @@ namespace NT114_t2_be.Controllers
                 return NotFound();
             }
             return await _context.ArticleTables.ToListAsync();
+        }
+
+
+
+        //create an api for user to get the article but truncate the title and body
+        [HttpGet("showArticle_Ad")]
+        public async Task<ActionResult<IEnumerable<ArticleTable>>> GetArticle_Ad()
+        {
+            if(_context.ArticleTables == null)
+            {
+                return NotFound();
+            }
+            var articles = await _context.ArticleTables.ToListAsync();
+            foreach(var article in articles)
+            {
+                if (string.IsNullOrEmpty(article.Body) || article.Body.Length <= 20 && string.IsNullOrEmpty(article.ArticleTitle) || article.ArticleTitle.Length <= 20)
+                {
+                    article.Body = article.Body;
+                    article.ArticleTitle = article.ArticleTitle;
+                }
+                else
+                {
+                    article.ArticleTitle = article.ArticleTitle.Substring(0, 20) + "...";
+                    article.Body = article.Body.Substring(0, 20) + "...";
+                }
+            }
+            return articles;
         }
 
         //create an api for user to post new article, the author of the article is the user who is existing in the database
@@ -63,7 +91,7 @@ namespace NT114_t2_be.Controllers
         }
 
         //create an api delete the article
-        [HttpDelete("deleteArticle_Ad")]
+        [HttpDelete("deleteArticle_Ad/{id}")]
         public IActionResult DeleteArticle(int id)
         {
             var article = _context.ArticleTables.Find(id);

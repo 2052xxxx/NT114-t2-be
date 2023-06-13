@@ -21,6 +21,14 @@ public partial class UserTable
 
     public DateTime RegistrationDate { get; set; }
 
+    public int? Status { get; set; }
+
+    public string? Token { get; set; }
+
+    public string? Hash { get; set; }
+
+    public string? Salt { get; set; }
+
     public virtual ICollection<ArticleTable> ArticleTables { get; } = new List<ArticleTable>();
 
     public virtual ICollection<CommentTable> CommentTables { get; } = new List<CommentTable>();

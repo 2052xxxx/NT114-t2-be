@@ -195,6 +195,9 @@ public partial class Nt114T2DbContext : DbContext
                 .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("email");
+            entity.Property(e => e.Hash)
+                .HasMaxLength(255)
+                .IsUnicode(false);
             entity.Property(e => e.Password)
                 .HasMaxLength(255)
                 .IsUnicode(false)
@@ -207,6 +210,14 @@ public partial class Nt114T2DbContext : DbContext
                 .HasPrecision(3)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("registration_date");
+            entity.Property(e => e.Salt)
+                .HasMaxLength(255)
+                .IsUnicode(false);
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.Token)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("token");
             entity.Property(e => e.Username)
                 .HasMaxLength(255)
                 .IsUnicode(false)
