@@ -24,23 +24,40 @@ namespace NT114_t2_be.Controllers
         }
 
         //create an api for user to post new comment
+        //[HttpPost("postComment")]
+        //public IActionResult PostComment(string commentContent, int article_id, int user_id)
+        //{
+        //    var article = _context.ArticleTables.Find(article_id);
+        //    var user = _context.UserTables.Find(user_id);
+        //    if (article == null || user == null)
+        //    {
+        //        return NotFound();
+        //    }
+
+        //    save the comment to the database
+        //    _context.CommentTables.Add(new CommentTable
+        //    {
+        //        Text = commentContent,
+        //        ArticleId = article_id,
+        //        UserId = user_id
+        //    });
+        //    _context.SaveChanges();
+        //    return Ok("Successfully commented");
+        //}
+
+
+        //create an api for user to post new comment
         [HttpPost("postComment")]
-        public IActionResult PostComment(string commentContent, int article_id, int user_id)
+        public IActionResult PostComment(CommentTable comment)
         {
-            var article = _context.ArticleTables.Find(article_id);
-            var user = _context.UserTables.Find(user_id);
-            if (article == null || user ==null)
+            var article = _context.ArticleTables.Find(comment.ArticleId);
+            var user = _context.UserTables.Find(comment.UserId);
+            if (article == null || user == null)
             {
                 return NotFound();
             }
-
             //save the comment to the database
-            _context.CommentTables.Add(new CommentTable
-            {
-                Text = commentContent,
-                ArticleId = article_id, 
-                UserId = user_id
-            });
+            _context.CommentTables.Add(comment);
             _context.SaveChanges();
             return Ok("Successfully commented");
         }

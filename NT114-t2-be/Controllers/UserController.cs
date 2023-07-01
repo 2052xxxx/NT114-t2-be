@@ -1,8 +1,18 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Azure.Core;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.IdentityModel.Tokens;
 using NT114_t2_be.Models;
+using NT114_t2_be.Services.UserServices;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace NT114_t2_be.Controllers
 {
@@ -11,9 +21,65 @@ namespace NT114_t2_be.Controllers
     public class UserController : ControllerBase
     {
         private readonly Nt114T2DbContext _context;
-        public UserController(Nt114T2DbContext dbContext)
+        private readonly IConfiguration _configuration;
+        private readonly IUserService _userService;
+        private readonly IWebHostEnvironment _hostEnvironment;
+
+        public UserController(
+            Nt114T2DbContext dbContext, IConfiguration configuration, 
+            IUserService userService, IWebHostEnvironment hostEnvironment)
         {
             _context = dbContext;
+            _configuration = configuration;
+            _userService = userService;
+            _hostEnvironment = hostEnvironment;
+        }
+        private async Task<UserTable> GetUserByEmail(string email)
+        {
+            return await _context.UserTables.FirstOrDefaultAsync(user => user.Email == email);
+        }
+
+        //public UserAuth userAuth = new UserAuth();
+        private void createPasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
+        {
+            using (var hmac = new HMACSHA512())
+            {
+                passwordSalt = hmac.Key;
+                passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+            }
+        }
+        private bool verifyPasswordHash(string password, byte[] storedHash, byte[] storedSalt)
+        {
+            using (var hmac = new HMACSHA512(storedSalt))
+            {
+                var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+                return computedHash.SequenceEqual(storedHash);
+                //for (int index = 0; index < computedHash.Length; index++)
+                //{
+                //    if (computedHash[index] != storedHash[index]) return false;
+                //}
+            }
+            //return true;
+        }
+        private string createToken(UserTable user)
+        {
+            List<Claim> claims = new List<Claim>
+            {
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Email, user.Email)
+            };
+            var key = new SymmetricSecurityKey
+                (Encoding.UTF8.GetBytes(_configuration.GetSection("AppSettings:TokenKey").Value));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256Signature);
+
+            var token = new JwtSecurityToken(
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(30),
+                signingCredentials: creds
+            );
+
+            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
+            return jwt;
         }
 
         [HttpGet("showUser")]
@@ -37,18 +103,35 @@ namespace NT114_t2_be.Controllers
             var users = await _context.UserTables.ToListAsync();
             foreach(var user in users)
             {
-                if (string.IsNullOrEmpty(user.Avatar) || user.Avatar.Length <= 20 && string.IsNullOrEmpty(user.Bio) || user.Bio.Length <= 20)
+              
+                if ( string.IsNullOrEmpty(user.Bio) || user.Bio.Length <= 20)
                 {
-                    user.Avatar = user.Avatar;
                     user.Bio = user.Bio;
                 }
                 else
                 {
-                    user.Avatar = user.Avatar.Substring(0, 20) + "...";
                     user.Bio = user.Bio.Substring(0, 20) + "...";
                 }
             }
             return users;
+        }
+
+        //if api receive the token from the user, it will check the token and return the user information
+        [HttpGet, Authorize]
+        public ActionResult<UserTable> GetMe()
+        {
+            UserAuth userInfo = _userService.GetUserName();
+            if (userInfo == null)
+            {
+                return NotFound();
+            }
+            var users = new List<UserTable>();
+            if (userInfo != null && !string.IsNullOrEmpty(userInfo.Username) && !string.IsNullOrEmpty(userInfo.Email))
+            {
+                // Trích xuất danh sách thông tin người dùng từ database
+                users = _context.UserTables.Where(x => x.Username == userInfo.Username && x.Email == userInfo.Email).ToList();
+            }
+            return Ok(users);
         }
 
         [HttpGet("{id}")]
@@ -67,45 +150,68 @@ namespace NT114_t2_be.Controllers
             return user;
         }
 
-        [HttpPost("signUp")]
+        [HttpPost("register")]
         public async Task<ActionResult<UserTable>> PostNewUser(UserTable user)
         {
-            _context.UserTables.Add(user);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(PostNewUser), new {id = user.Userid}, user);
-        }
-
-        //create an api for user to edit their profile
-
-        [HttpPut("editUser")]
-        public async Task<IActionResult> PutEditUser(int id, UserTable user )
-        {
-            if (id != user.Userid)
+            // check if username is already taken
+            if (_context.UserTables.Any(x => x.Email == user.Email))
             {
-                return BadRequest("Invalid User Id");
+                return BadRequest("Account already taken");
             }
-
-            _context.Entry(user).State = EntityState.Modified;
-
-            try
+            else
             {
+                createPasswordHash(user.Password, out byte[] passwordHash, out byte[] passwordSalt);
+                user.Hash = passwordHash;
+                user.Salt = passwordSalt;
+                string token = createToken(user);
+                user.Status = 1;
+                _context.UserTables.Add(user);
                 await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+
+                return Ok(token);
             }
             
-            return Ok();
         }
+
+
+        //create an api for user to edit their profile
+        //[HttpPut("editUser/{id}")]
+        //public async Task<IActionResult> PutUser(int id, UserTable user)
+        //{
+        //    if (id != user.Userid)
+        //    {
+        //        return BadRequest();
+        //    }
+        //    var userTable = await _context.UserTables.FindAsync(id);
+        //    if (userTable == null)
+        //    {
+        //        return NotFound();
+        //    }
+        //    userTable.Username = user.Username;
+        //    userTable.Email = user.Email;
+        //    userTable.Avatar = user.Avatar;
+        //    userTable.Bio = user.Bio;
+           
+        //    userTable.RegistrationDate = user.RegistrationDate;
+        //    _context.Entry(userTable).State = EntityState.Modified;
+        //    try
+        //    {
+        //        await _context.SaveChangesAsync();
+        //    }
+        //    catch (DbUpdateConcurrencyException)
+        //    {
+        //        if (!UserExists(id))
+        //        {
+        //            return NotFound();
+        //        }
+        //        else
+        //        {
+        //            throw;
+        //        }
+        //    }
+        //    string token = createToken(userTable);
+        //    return Ok(token);
+        //}
 
         private bool UserExists(long id)
         {
@@ -137,7 +243,7 @@ namespace NT114_t2_be.Controllers
             }
             await _context.SaveChangesAsync();               
 
-            return user;
+            return Ok(user);
         }
 
         //how to link comment table to user table
@@ -151,52 +257,46 @@ namespace NT114_t2_be.Controllers
             return await _context.ArticleTables.ToListAsync();
         }
 
-        //create an api for users to upload their avatar
-        [HttpPost("uploadAvatar")]
-        public async Task<ActionResult<UserTable>> UploadAvatar(IFormFile file)
-        {
-            //get the file name
-            var fileName = Path.GetFileName(file.FileName);
-            //get the file extension
-            var fileExtension = Path.GetExtension(fileName);
-            //get the file size
-            var fileSize = file.Length;
-            //get the file path
-            //var filePath = Path.Combine(_hostingEnvironment.WebRootPath, "images", fileName);
-            ////get the file stream
-            //using (var fileStream = new FileStream(filePath, FileMode.Create))
-            //{
-            //    await file.CopyToAsync(fileStream);
-            //}
-            return Ok();
-        }
 
         [HttpPost("signIn")]
         public async Task<ActionResult<UserTable>> SignIn(Login login)
-        {
-            //create an api for users to sign in
-
-            var log = await _context.UserTables.FirstOrDefaultAsync(x => x.Email.Equals(login.Email) && x.Password.Equals(login.Password));
-            if (log == null)
+        {           
+            
+            var user = await GetUserByEmail(login.Email);
+            if (user == null)
             {
-                return NotFound();
+                return BadRequest("Invalid user");
             }
             else
             {
-                //set status value to 1
-                log.Status = 1;
-                _context.Entry(log).State = EntityState.Modified;
-                await _context.SaveChangesAsync();
-            }
-            return Ok();
-        }
+                var passwordHash = user.Hash;
+                var passwordSalt = user.Salt;
+                if (!verifyPasswordHash(login.Password, passwordHash, passwordSalt))
+                {
+                    return BadRequest("Invalid Password");
 
+                }
+                else
+                {
+                    //set status value to 1
+                    user.Status = 1;
+                    string token = createToken(user);
+                    _context.Entry(user).State = EntityState.Modified;                    
+                    await _context.SaveChangesAsync();
+                    return Ok(token);
+
+                }
+            }
+            
+        }
+     
 
         //create an api for users to sign out
-        [HttpPost("signOut_Ad")]
-        public async Task<ActionResult<UserTable>> SignOut(string email, string password)
+
+        [HttpPost("logout")]
+        public async Task<ActionResult<UserTable>> SignOut(UserAuth logout)
         {
-            var userSignOut = await _context.UserTables.FirstOrDefaultAsync(x => x.Email == email && x.Password == password);
+            var userSignOut = await _context.UserTables.FirstOrDefaultAsync(x => x.Email == logout.Email && x.Username == logout.Username);
             if (userSignOut == null)
             {
                 return NotFound();
@@ -223,5 +323,166 @@ namespace NT114_t2_be.Controllers
             await _context.SaveChangesAsync();
             return Ok();
         }
+
+        //[HttpPost("uploadImage")]
+        //public async Task<string> SaveImage(IFormFile imageFile)
+        //{
+        //    string imageName = new String(Path.GetFileNameWithoutExtension(imageFile.FileName).Take(10).ToArray()).Replace(' ', '-');
+        //    imageName = imageName + DateTime.Now.ToString("yymmssfff") + Path.GetExtension(imageFile.FileName);
+        //    var imagePath = Path.Combine(_hostEnvironment.ContentRootPath, "Images", imageName);
+        //    using (var fileStream = new FileStream(imagePath, FileMode.Create))
+        //    {
+        //        await imageFile.CopyToAsync(fileStream);
+        //    }
+        //    return imageName;
+        //}
+
+        [HttpPost("uploadImage/{id}")]
+        public async Task<ActionResult> UploadImage(int id)
+        {
+            bool Results = false;
+            // find user by id
+            var user = await _context.UserTables.FindAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+            string imageUrl = string.Empty;
+            string token = string.Empty;
+
+            try
+            {
+                var _uploadedfile = Request.Form.Files;
+                foreach (IFormFile source in _uploadedfile)
+                {
+                    string Filename = source.FileName;
+                    string Filepath = GetFilePath(Filename);
+                    if (!Directory.Exists(Filepath))
+                    {
+                        Directory.CreateDirectory(Filepath);
+                    }
+
+                    string imagepath = Filepath + "\\image.png";
+
+                    if (System.IO.File.Exists(imagepath))
+                    {
+                        System.IO.File.Delete(imagepath);
+                    }
+                    using (FileStream stream = System.IO.File.Create(imagepath))
+                    {
+                        await source.CopyToAsync(stream);
+                        Results = true;
+                    }
+                    imageUrl = getImageByUrl(Filename);
+                }
+            }
+            catch (Exception ex)
+            {
+
+            }
+            if (Results)
+            {
+                user.Avatar = imageUrl;
+                _context.Entry(user).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+                token = createToken(user);
+            }
+            return Ok(token);
+        }
+
+        //[NonAction]
+        //private string UploadImage(IFormFile img)
+        //{
+        //    bool Results = false;
+        //    // find user by id
+
+        //    string imageUrl = string.Empty;
+
+        //    try
+        //    {
+        //        var _uploadedfile = img;
+
+        //        string Filename = img.FileName;
+        //        string Filepath = GetFilePath(Filename);
+        //        if (!Directory.Exists(Filepath))
+        //        {
+        //            Directory.CreateDirectory(Filepath);
+        //        }
+
+        //        string imagepath = Filepath + "\\image.png";
+
+        //        if (System.IO.File.Exists(imagepath))
+        //        {
+        //            System.IO.File.Delete(imagepath);
+        //        }
+        //        using (FileStream stream = System.IO.File.Create(imagepath))
+        //        {
+        //            img.CopyToAsync(stream);
+        //            Results = true;
+        //        }
+        //        imageUrl = getImageByUrl(Filename);
+
+        //    }
+        //    catch (Exception ex)
+        //    {
+
+        //    }
+
+        //    return imageUrl;
+        //}
+
+        // create api for user to edit profile
+        [HttpPut("editProfile/{id}")]
+        public async Task<ActionResult<UserTable>> EditProfile(int id, UserTable user)
+        {
+            if (id != user.Userid)
+            {
+                return BadRequest();
+            }
+            else
+            {
+                _context.Entry(user).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+            }
+            return user;
+        }
+
+        [NonAction]
+        private string GetFilePath(string avatarCode)
+        {
+            return this._hostEnvironment.WebRootPath + "\\Images\\" + avatarCode;
+        }
+
+        [NonAction]
+        private string getImageByUrl(string avatarCode)
+        {
+            string imageUrl = string.Empty;
+            string hostUrl = "https://localhost:7015/";
+            string filePath = GetFilePath(avatarCode);
+            string imagePath = filePath + "\\image.png";
+            if(!System.IO.File.Exists(imagePath)) {
+                imageUrl = hostUrl + "/Images/noimage.png";
+            }
+            else
+            {
+                imageUrl = hostUrl + "/Images/"+ avatarCode+"/image.png";
+            }
+            return imageUrl;
+        }
+
+        // create put user api
+        [HttpPut("updateUser/{id}")]
+        public async Task<ActionResult<UserTable>> PutUser(int id, UserTable user)
+        {
+            if (id != user.Userid)
+            {
+                return BadRequest();
+            }
+            _context.Entry(user).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+            return Ok(user);
+        }
+
+
     }
 }

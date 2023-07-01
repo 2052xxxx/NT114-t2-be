@@ -185,7 +185,7 @@ public partial class Nt114T2DbContext : DbContext
 
             entity.Property(e => e.Userid).HasColumnName("userid");
             entity.Property(e => e.Avatar)
-                .HasMaxLength(255)
+                .HasMaxLength(100)
                 .IsUnicode(false)
                 .HasColumnName("avatar");
             entity.Property(e => e.Bio)
@@ -197,7 +197,7 @@ public partial class Nt114T2DbContext : DbContext
                 .HasColumnName("email");
             entity.Property(e => e.Hash)
                 .HasMaxLength(255)
-                .IsUnicode(false);
+                .HasColumnName("hash");
             entity.Property(e => e.Password)
                 .HasMaxLength(255)
                 .IsUnicode(false)
@@ -212,12 +212,8 @@ public partial class Nt114T2DbContext : DbContext
                 .HasColumnName("registration_date");
             entity.Property(e => e.Salt)
                 .HasMaxLength(255)
-                .IsUnicode(false);
+                .HasColumnName("salt");
             entity.Property(e => e.Status).HasColumnName("status");
-            entity.Property(e => e.Token)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("token");
             entity.Property(e => e.Username)
                 .HasMaxLength(255)
                 .IsUnicode(false)
