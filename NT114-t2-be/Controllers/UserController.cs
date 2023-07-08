@@ -24,15 +24,18 @@ namespace NT114_t2_be.Controllers
         private readonly IConfiguration _configuration;
         private readonly IUserService _userService;
         private readonly IWebHostEnvironment _hostEnvironment;
+        private readonly IHttpContextAccessor _contextAccessor;
 
         public UserController(
             Nt114T2DbContext dbContext, IConfiguration configuration, 
-            IUserService userService, IWebHostEnvironment hostEnvironment)
+            IUserService userService, IWebHostEnvironment hostEnvironment, 
+            IHttpContextAccessor contextAccessor)
         {
             _context = dbContext;
             _configuration = configuration;
             _userService = userService;
             _hostEnvironment = hostEnvironment;
+            _contextAccessor = contextAccessor;
         }
         private async Task<UserTable> GetUserByEmail(string email)
         {
@@ -112,6 +115,7 @@ namespace NT114_t2_be.Controllers
                 {
                     user.Bio = user.Bio.Substring(0, 20) + "...";
                 }
+               
             }
             return users;
         }
@@ -390,61 +394,117 @@ namespace NT114_t2_be.Controllers
             return Ok(token);
         }
 
-        //[NonAction]
-        //private string UploadImage(IFormFile img)
-        //{
-        //    bool Results = false;
-        //    // find user by id
 
-        //    string imageUrl = string.Empty;
+        [NonAction]
+        private string UploadImage(IFormFile img)
+        {
+            // find user by id
 
-        //    try
-        //    {
-        //        var _uploadedfile = img;
+            string imageUrl = string.Empty;
 
-        //        string Filename = img.FileName;
-        //        string Filepath = GetFilePath(Filename);
-        //        if (!Directory.Exists(Filepath))
-        //        {
-        //            Directory.CreateDirectory(Filepath);
-        //        }
+            try
+            {
+                var _uploadedfile = img;
 
-        //        string imagepath = Filepath + "\\image.png";
+                string Filename = img.FileName;
+                string Filepath = GetFilePath(Filename);
+                if (!Directory.Exists(Filepath))
+                {
+                    Directory.CreateDirectory(Filepath);
+                }
 
-        //        if (System.IO.File.Exists(imagepath))
-        //        {
-        //            System.IO.File.Delete(imagepath);
-        //        }
-        //        using (FileStream stream = System.IO.File.Create(imagepath))
-        //        {
-        //            img.CopyToAsync(stream);
-        //            Results = true;
-        //        }
-        //        imageUrl = getImageByUrl(Filename);
+                string imagepath = Filepath + "\\image.png";
 
-        //    }
-        //    catch (Exception ex)
-        //    {
+                if (System.IO.File.Exists(imagepath))
+                {
+                    System.IO.File.Delete(imagepath);
+                }
+                using (FileStream stream = System.IO.File.Create(imagepath))
+                {
+                    img.CopyToAsync(stream);
+                }
+                imageUrl = getImageByUrl(Filename);
 
-        //    }
+            }
+            catch (Exception ex)
+            {
 
-        //    return imageUrl;
-        //}
+            }
+
+            return imageUrl;
+        }
+
+        //[HttpPost("test")]
+        ////create an api for users to upload image
+        [HttpPost("test")]
+        public async Task<ActionResult> UploadImage()
+        {
+            bool Results = false;
+            try
+            {
+                var _uploadedfile = Request.Form.Files;
+                foreach (IFormFile source in _uploadedfile)
+                {
+                    string Filename = source.FileName;
+                    string Filepath = GetFilePath(Filename);
+                    if (!Directory.Exists(Filepath))
+                    {
+                        Directory.CreateDirectory(Filepath);
+                    }
+                    string imagepath = Filepath + "\\image.png";
+
+                    if (System.IO.File.Exists(imagepath))
+                    {
+                        System.IO.File.Delete(imagepath);
+                    }
+                    using (FileStream stream = System.IO.File.Create(imagepath))
+                    {
+                        await source.CopyToAsync(stream);
+                        Results = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+
+            }
+            return Ok(Results);
+        }
 
         // create api for user to edit profile
-        [HttpPut("editProfile/{id}")]
-        public async Task<ActionResult<UserTable>> EditProfile(int id, UserTable user)
+        [HttpPut("editProfile")]
+        public async Task<ActionResult<UserTable>> UploadImage([FromForm] UserDto user)
         {
-            if (id != user.Userid)
+            string token = string.Empty;
+            var userEdit = await _context.UserTables.FindAsync(user.Userid);
+            if (userEdit == null)
             {
-                return BadRequest();
+                return NotFound();
             }
             else
             {
-                _context.Entry(user).State = EntityState.Modified;
+                if (user.Username != null)
+                {
+                    userEdit.Username = user.Username;
+                }
+                if (user.Realname != null)
+                {
+                    user.Realname = user.Realname;
+                }
+                if (user.avatar != null)
+                {
+                    userEdit.Avatar = UploadImage(user.avatar);
+                }
+                if (user.Bio != null)
+                {
+                    userEdit.Bio = user.Bio;
+                }
+               
+                _context.Entry(userEdit).State = EntityState.Modified;
                 await _context.SaveChangesAsync();
+                token = createToken(userEdit);
             }
-            return user;
+            return Ok(token);
         }
 
         [NonAction]
@@ -471,17 +531,7 @@ namespace NT114_t2_be.Controllers
         }
 
         // create put user api
-        [HttpPut("updateUser/{id}")]
-        public async Task<ActionResult<UserTable>> PutUser(int id, UserTable user)
-        {
-            if (id != user.Userid)
-            {
-                return BadRequest();
-            }
-            _context.Entry(user).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-            return Ok(user);
-        }
+       
 
 
     }

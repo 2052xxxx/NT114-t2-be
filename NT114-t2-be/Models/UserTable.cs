@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace NT114_t2_be.Models;
 
@@ -27,9 +26,6 @@ public partial class UserTable
     public byte[]? Salt { get; set; }
 
     public string? Avatar { get; set; }
-
-    //[NotMapped]
-    //public IFormFile? formFile { get; set; }
 
     public virtual ICollection<ArticleTable> ArticleTables { get; } = new List<ArticleTable>();
 

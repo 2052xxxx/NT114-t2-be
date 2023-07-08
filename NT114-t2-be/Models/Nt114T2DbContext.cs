@@ -185,7 +185,7 @@ public partial class Nt114T2DbContext : DbContext
 
             entity.Property(e => e.Userid).HasColumnName("userid");
             entity.Property(e => e.Avatar)
-                .HasMaxLength(100)
+                .HasMaxLength(255)
                 .IsUnicode(false)
                 .HasColumnName("avatar");
             entity.Property(e => e.Bio)

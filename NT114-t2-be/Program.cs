@@ -77,6 +77,7 @@ app.UseCors(builder =>
 });
 
 //app.UseCors("NgOrigins");
+app.UseRouting();
 
 app.UseHttpsRedirection();
 
